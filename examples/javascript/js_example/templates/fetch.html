@@ -15,16 +15,25 @@
         body: new FormData(this)
       })
         .then(parseJSON)
-        .then(addShow);
+        .then(addShow)
+        .catch(addError);
     }
 
     function parseJSON(response) {
-      return response.json();
+      return response.json().then(function(data) {
+        if (!response.ok) throw data;
+        return data;
+      });
     }
 
     function addShow(data) {
-      var span = document.getElementById('result');
-      span.innerText = data.result;
+      document.getElementById('result').innerText = data.result;
+      document.getElementById('error').innerText = '';
+    }
+
+    function addError(data) {
+      document.getElementById('result').innerText = '';
+      document.getElementById('error').innerText = data.error || 'Request failed.';
     }
 
     var form = document.getElementById('calc');
