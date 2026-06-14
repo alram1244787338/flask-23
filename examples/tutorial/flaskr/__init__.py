@@ -1,6 +1,7 @@
 import os
 
 from flask import Flask
+from flask import render_template
 
 
 def create_app(test_config=None):
@@ -44,5 +45,17 @@ def create_app(test_config=None):
     # app.route, while giving the blog blueprint a url_prefix, but for
     # the tutorial the blog will be the main index
     app.add_url_rule("/", endpoint="index")
+
+    # show friendly pages for these errors so that a missing or
+    # forbidden post gives clear feedback instead of looking like a
+    # dead click. the status codes are kept so the responses stay
+    # correct for clients and tests.
+    @app.errorhandler(403)
+    def forbidden(error):
+        return render_template("errors/403.html", error=error), 403
+
+    @app.errorhandler(404)
+    def not_found(error):
+        return render_template("errors/404.html", error=error), 404
 
     return app

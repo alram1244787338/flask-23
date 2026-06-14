@@ -52,9 +52,30 @@ def get_post(id, check_author=True):
         abort(404, f"Post id {id} doesn't exist.")
 
     if check_author and post["author_id"] != g.user["id"]:
-        abort(403)
+        abort(403, "You can only edit or delete posts that you authored.")
 
     return post
+
+
+def validate_post_form():
+    """Read the post fields from the submitted form and validate them.
+
+    The title is stripped of surrounding whitespace so that a title made
+    up only of spaces, tabs, or newlines is rejected the same way a
+    missing title is. ``create`` and ``update`` share this helper so the
+    two paths always validate the same way.
+
+    :return: a ``(title, body, error)`` tuple where ``error`` is ``None``
+        when the form is valid
+    """
+    title = request.form["title"].strip()
+    body = request.form["body"]
+    error = None
+
+    if not title:
+        error = "Title is required."
+
+    return title, body, error
 
 
 @bp.route("/create", methods=("GET", "POST"))
@@ -62,12 +83,7 @@ def get_post(id, check_author=True):
 def create():
     """Create a new post for the current user."""
     if request.method == "POST":
-        title = request.form["title"]
-        body = request.form["body"]
-        error = None
-
-        if not title:
-            error = "Title is required."
+        title, body, error = validate_post_form()
 
         if error is not None:
             flash(error)
@@ -90,12 +106,7 @@ def update(id):
     post = get_post(id)
 
     if request.method == "POST":
-        title = request.form["title"]
-        body = request.form["body"]
-        error = None
-
-        if not title:
-            error = "Title is required."
+        title, body, error = validate_post_form()
 
         if error is not None:
             flash(error)

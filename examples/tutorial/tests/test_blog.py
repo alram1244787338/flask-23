@@ -31,7 +31,12 @@ def test_author_required(app, client, auth):
 
     auth.login()
     # current user can't modify other user's post
-    assert client.post("/1/update").status_code == 403
+    response = client.post("/1/update")
+    assert response.status_code == 403
+    # the forbidden page makes clear this is a permission problem, which
+    # is different from the post not existing
+    assert b"Back to all posts" in response.data
+    assert b"posts that you authored" in response.data
     assert client.post("/1/delete").status_code == 403
     # current user doesn't see edit link
     assert b'href="/1/update"' not in client.get("/").data
@@ -40,7 +45,10 @@ def test_author_required(app, client, auth):
 @pytest.mark.parametrize("path", ("/2/update", "/2/delete"))
 def test_exists_required(client, auth, path):
     auth.login()
-    assert client.post(path).status_code == 404
+    response = client.post(path)
+    assert response.status_code == 404
+    # a missing post shows the friendly not-found page, not a dead click
+    assert b"Back to all posts" in response.data
 
 
 def test_create(client, auth, app):
@@ -52,6 +60,19 @@ def test_create(client, auth, app):
         db = get_db()
         count = db.execute("SELECT COUNT(id) FROM post").fetchone()[0]
         assert count == 2
+
+
+def test_create_strips_title(client, auth, app):
+    auth.login()
+    # surrounding whitespace is trimmed before the post is saved
+    client.post("/create", data={"title": "  spaced title  ", "body": ""})
+
+    with app.app_context():
+        db = get_db()
+        post = db.execute(
+            "SELECT * FROM post WHERE title = 'spaced title'"
+        ).fetchone()
+        assert post is not None
 
 
 def test_update(client, auth, app):
@@ -66,9 +87,12 @@ def test_update(client, auth, app):
 
 
 @pytest.mark.parametrize("path", ("/create", "/1/update"))
-def test_create_update_validate(client, auth, path):
+@pytest.mark.parametrize("title", ("", "   ", "\n\t "))
+def test_create_update_validate(client, auth, path, title):
     auth.login()
-    response = client.post(path, data={"title": "", "body": ""})
+    # empty titles and whitespace-only titles are both rejected, and
+    # create and update reject them the same way
+    response = client.post(path, data={"title": title, "body": ""})
     assert b"Title is required." in response.data
 
 
