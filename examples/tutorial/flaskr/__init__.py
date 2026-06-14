@@ -1,6 +1,7 @@
 import os
 
 from flask import Flask
+from flask import render_template
 
 
 def create_app(test_config=None):
@@ -44,5 +45,13 @@ def create_app(test_config=None):
     # app.route, while giving the blog blueprint a url_prefix, but for
     # the tutorial the blog will be the main index
     app.add_url_rule("/", endpoint="index")
+
+    @app.errorhandler(404)
+    def page_not_found(e):
+        return render_template("404.html", message=e.description), 404
+
+    @app.errorhandler(403)
+    def forbidden(e):
+        return render_template("403.html", message=e.description), 403
 
     return app

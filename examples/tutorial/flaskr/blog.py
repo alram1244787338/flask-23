@@ -13,6 +13,21 @@ from .db import get_db
 bp = Blueprint("blog", __name__)
 
 
+def validate_title(title):
+    """Validate and clean a post title.
+
+    Strips leading/trailing whitespace (including newlines) so that a
+    title made up of only spaces is treated as empty.
+
+    :param title: raw title string from the form
+    :return: (cleaned_title, error) — error is None when the title is valid
+    """
+    title = title.strip()
+    if not title:
+        return title, "Title is required."
+    return title, None
+
+
 @bp.route("/")
 def index():
     """Show all the posts, most recent first."""
@@ -52,7 +67,7 @@ def get_post(id, check_author=True):
         abort(404, f"Post id {id} doesn't exist.")
 
     if check_author and post["author_id"] != g.user["id"]:
-        abort(403)
+        abort(403, "You don't have permission to access this post.")
 
     return post
 
@@ -64,10 +79,8 @@ def create():
     if request.method == "POST":
         title = request.form["title"]
         body = request.form["body"]
-        error = None
 
-        if not title:
-            error = "Title is required."
+        title, error = validate_title(title)
 
         if error is not None:
             flash(error)
@@ -92,10 +105,8 @@ def update(id):
     if request.method == "POST":
         title = request.form["title"]
         body = request.form["body"]
-        error = None
 
-        if not title:
-            error = "Title is required."
+        title, error = validate_title(title)
 
         if error is not None:
             flash(error)

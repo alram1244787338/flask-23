@@ -72,6 +72,74 @@ def test_create_update_validate(client, auth, path):
     assert b"Title is required." in response.data
 
 
+@pytest.mark.parametrize(
+    "bad_title",
+    ("   ", "\t", "\n", "  \n\t  "),
+)
+@pytest.mark.parametrize("path", ("/create", "/1/update"))
+def test_create_update_whitespace_title(client, auth, path, bad_title):
+    auth.login()
+    response = client.post(path, data={"title": bad_title, "body": "some body"})
+    assert b"Title is required." in response.data
+
+
+def test_update_no_permission(app, client, auth):
+    """Trying to edit another user's post should return 403 with a clear message."""
+    # Reassign post 1 to user 2 so that the logged-in user (test, id=1)
+    # is no longer the author.
+    with app.app_context():
+        db = get_db()
+        db.execute("UPDATE post SET author_id = 2 WHERE id = 1")
+        db.commit()
+
+    auth.login()
+    response = client.post("/1/update", data={"title": "hacked", "body": ""})
+    assert response.status_code == 403
+    assert b"permission" in response.data
+
+
+def test_delete_no_permission(app, client, auth):
+    """Trying to delete another user's post should return 403 with a clear message."""
+    with app.app_context():
+        db = get_db()
+        db.execute("UPDATE post SET author_id = 2 WHERE id = 1")
+        db.commit()
+
+    auth.login()
+    response = client.post("/1/delete")
+    assert response.status_code == 403
+    assert b"permission" in response.data
+
+
+def test_update_not_found(client, auth):
+    """Updating a post that doesn't exist should return 404 with a clear message."""
+    auth.login()
+    response = client.post("/999/update", data={"title": "x", "body": ""})
+    assert response.status_code == 404
+    assert b"doesn&#39;t exist" in response.data or b"doesn" in response.data
+
+
+def test_delete_not_found(client, auth):
+    """Deleting a post that doesn't exist should return 404 with a clear message."""
+    auth.login()
+    response = client.post("/999/delete")
+    assert response.status_code == 404
+    assert b"doesn&#39;t exist" in response.data or b"doesn" in response.data
+
+
+def test_create_strips_title(client, auth, app):
+    """Leading/trailing whitespace in the title is stripped before storing."""
+    auth.login()
+    client.post("/create", data={"title": "  padded title  ", "body": ""})
+
+    with app.app_context():
+        db = get_db()
+        post = db.execute(
+            "SELECT title FROM post ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        assert post["title"] == "padded title"
+
+
 def test_delete(client, auth, app):
     auth.login()
     response = client.post("/1/delete")
