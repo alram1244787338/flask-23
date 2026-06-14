@@ -16,6 +16,18 @@ from .db import get_db
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
+def _normalize_username(username):
+    """Normalize a username for consistent storage and lookup.
+
+    Strips leading/trailing whitespace and lowercases the value so that
+    inputs such as ``" TestUser "``, ``"testuser"``, and ``"TESTUSER"``
+    are all treated as the same account.
+    """
+    if username is None:
+        return ""
+    return username.strip().lower()
+
+
 def login_required(view):
     """View decorator that redirects anonymous users to the login page."""
 
@@ -51,8 +63,8 @@ def register():
     password for security.
     """
     if request.method == "POST":
-        username = request.form["username"]
-        password = request.form["password"]
+        username = _normalize_username(request.form.get("username", ""))
+        password = request.form.get("password", "")
         db = get_db()
         error = None
 
@@ -85,8 +97,8 @@ def register():
 def login():
     """Log in a registered user by adding the user id to the session."""
     if request.method == "POST":
-        username = request.form["username"]
-        password = request.form["password"]
+        username = _normalize_username(request.form.get("username", ""))
+        password = request.form.get("password", "")
         db = get_db()
         error = None
         user = db.execute(
@@ -94,7 +106,7 @@ def login():
         ).fetchone()
 
         if user is None:
-            error = "Incorrect username."
+            error = "No account found with that username."
         elif not check_password_hash(user["password"], password):
             error = "Incorrect password."
 
