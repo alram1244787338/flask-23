@@ -13,14 +13,40 @@
       ev.preventDefault();
       var request = new XMLHttpRequest();
       request.addEventListener('load', addShow);
+      request.addEventListener('error', addError);
       request.open('POST', {{ url_for('add')|tojson }});
       request.send(new FormData(this));
     }
 
     function addShow() {
-      var data = JSON.parse(this.responseText);
-      var span = document.getElementById('result');
-      span.innerText = data.result;
+      var data;
+
+      try {
+        data = JSON.parse(this.responseText);
+      } catch (e) {
+        showError('Could not read the server response. Please try again.');
+        return;
+      }
+
+      if (this.status >= 200 && this.status < 300) {
+        showResult(data.result);
+      } else {
+        showError(data.error);
+      }
+    }
+
+    function addError() {
+      showError('Could not reach the server. Please try again.');
+    }
+
+    function showResult(value) {
+      document.getElementById('result').innerText = value;
+      document.getElementById('error').innerText = '';
+    }
+
+    function showError(message) {
+      document.getElementById('result').innerText = '';
+      document.getElementById('error').innerText = message;
     }
 
     var form = document.getElementById('calc');

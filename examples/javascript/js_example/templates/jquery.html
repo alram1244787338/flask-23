@@ -15,11 +15,33 @@
         method: 'POST',
         url: {{ url_for('add')|tojson }},
         data: $(this).serialize()
-      }).done(addShow);
+      }).done(addShow).fail(addError);
     }
 
     function addShow(data) {
-      $('#result').text(data.result);
+      showResult(data.result);
+    }
+
+    function addError(jqXHR) {
+      // jQuery parses a JSON error body into responseJSON. Fall back to a
+      // generic message when the server could not be reached at all.
+      var data = jqXHR.responseJSON;
+
+      if (data && data.error) {
+        showError(data.error);
+      } else {
+        showError('Could not reach the server. Please try again.');
+      }
+    }
+
+    function showResult(value) {
+      $('#result').text(value);
+      $('#error').text('');
+    }
+
+    function showError(message) {
+      $('#result').text('');
+      $('#error').text(message);
     }
 
     $('#calc').on('submit', addSubmit);

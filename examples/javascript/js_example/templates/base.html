@@ -10,6 +10,7 @@
   label > input { width: 3em; }
   form > * { padding-right: 1em; }
   #result { font-weight: bold; }
+  #error { color: #c0392b; font-weight: bold; }
 </style>
 <ul>
   <li><span>Type:</span>
@@ -30,4 +31,5 @@
   <input type="submit" value="Calculate">
 </form>
 <span>= <span id="result"></span></span>
+<p id="error" role="alert"></p>
 {% block script %}{% endblock %}

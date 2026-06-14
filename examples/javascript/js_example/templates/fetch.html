@@ -14,17 +14,34 @@
         method: 'POST',
         body: new FormData(this)
       })
-        .then(parseJSON)
-        .then(addShow);
+        .then(function (response) {
+          // Read the body whether the request succeeded or failed, so the
+          // error message the server sent can be shown to the user.
+          return response.json().then(function (data) {
+            addShow(response.ok, data);
+          });
+        })
+        .catch(function () {
+          showError('Could not reach the server. Please try again.');
+        });
     }
 
-    function parseJSON(response) {
-      return response.json();
+    function addShow(ok, data) {
+      if (ok) {
+        showResult(data.result);
+      } else {
+        showError(data.error);
+      }
     }
 
-    function addShow(data) {
-      var span = document.getElementById('result');
-      span.innerText = data.result;
+    function showResult(value) {
+      document.getElementById('result').innerText = value;
+      document.getElementById('error').innerText = '';
+    }
+
+    function showError(message) {
+      document.getElementById('result').innerText = '';
+      document.getElementById('error').innerText = message;
     }
 
     var form = document.getElementById('calc');
