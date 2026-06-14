@@ -16,6 +16,23 @@ from .db import get_db
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
+def normalize_username(username):
+    """Return a canonical form of ``username``.
+
+    Leading and trailing whitespace is stripped and the result is
+    case-folded, so inputs like ``" Alice "``, ``"alice"`` and ``"ALICE"``
+    all map to the same value. Registration, lookup and login normalize
+    the same way, so a name that *looks* the same always behaves the same.
+    ``casefold`` is used instead of ``lower`` because it folds case more
+    correctly for non-ASCII text. Whitespace-only or missing input becomes
+    an empty string so callers can report a "required" error.
+    """
+    if not username:
+        return ""
+
+    return username.strip().casefold()
+
+
 def login_required(view):
     """View decorator that redirects anonymous users to the login page."""
 
@@ -51,7 +68,10 @@ def register():
     password for security.
     """
     if request.method == "POST":
-        username = request.form["username"]
+        # Normalize so trailing spaces or odd casing can't create a
+        # second account that looks identical to an existing one. The
+        # password is never normalized; spaces there may be intentional.
+        username = normalize_username(request.form["username"])
         password = request.form["password"]
         db = get_db()
         error = None
@@ -85,18 +105,28 @@ def register():
 def login():
     """Log in a registered user by adding the user id to the session."""
     if request.method == "POST":
-        username = request.form["username"]
+        # Normalize the same way registration does so a name that looks
+        # the same always resolves to the same stored account.
+        username = normalize_username(request.form["username"])
         password = request.form["password"]
         db = get_db()
         error = None
-        user = db.execute(
-            "SELECT * FROM user WHERE username = ?", (username,)
-        ).fetchone()
+        user = None
 
-        if user is None:
-            error = "Incorrect username."
-        elif not check_password_hash(user["password"], password):
-            error = "Incorrect password."
+        if not username:
+            # Distinguish "you didn't enter a username" from a username
+            # that simply isn't registered, so the hint is actionable.
+            error = "Username is required."
+
+        if error is None:
+            user = db.execute(
+                "SELECT * FROM user WHERE username = ?", (username,)
+            ).fetchone()
+
+            if user is None:
+                error = "Incorrect username."
+            elif not check_password_hash(user["password"], password):
+                error = "Incorrect password."
 
         if error is None:
             # store the user id in a new session and return to the index
